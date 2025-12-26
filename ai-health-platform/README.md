@@ -71,7 +71,7 @@ ai-health-platform/
 ├── backend/
 │   ├── app/
 │   │   ├── api/              # REST API endpoints
-│   │   │   ├── auth.py       # JWT authentication
+│   │   │   ├── auth.py       # User registration (no authentication)
 │   │   │   ├── chat.py       # Chat endpoints
 │   │   │   ├── health.py     # Prediction endpoints
 │   │   │   └── dashboard.py  # Dashboard data
@@ -128,16 +128,13 @@ python -m http.server 3000
 ### Environment Variables
 Create `.env` in backend directory:
 ```env
-SECRET_KEY=your-secret-key
 GROQ_API_KEY=your-groq-api-key
 DATABASE_URL=sqlite:///./health_companion.db
 ```
 
 ## 📡 API Endpoints
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login (returns JWT)
+
 
 ### Health Predictions
 - `POST /api/health/predict/diabetes` - Diabetes risk prediction
@@ -170,7 +167,6 @@ Hair_growth: 0.104
 
 ## 🔐 Security Features
 
-- JWT-based authentication
 - Password hashing with bcrypt
 - CORS protection
 - Input validation with Pydantic
@@ -219,3 +215,7 @@ MIT License - Feel free to use for educational purposes.
 ---
 
 ⚠️ **Disclaimer**: This application is for educational and informational purposes only. It is NOT a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of qualified health providers for any medical conditions.
+
+---
+
+**Note:** This demo version does not include user authentication. All features are accessible without login for educational and demonstration purposes.
