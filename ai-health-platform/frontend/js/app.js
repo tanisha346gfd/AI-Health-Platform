@@ -1,0 +1,64 @@
+const API_URL = 'http://localhost:8000/api/v1';
+let token = localStorage.getItem('token');
+
+function showTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
+    
+    document.getElementById('loginForm').style.display = tab === 'login' ? 'flex' : 'none';
+    document.getElementById('registerForm').style.display = tab === 'register' ? 'flex' : 'none';
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: new URLSearchParams({
+                username: formData.get('email'),
+                password: formData.get('password')
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('token', data.access_token);
+            window.location.href = 'dashboard.html';
+        } else {
+            alert('Login failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+});
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                email: formData.get('email'),
+                password: formData.get('password'),
+                full_name: formData.get('fullName'),
+                age: parseInt(formData.get('age')) || null
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('token', data.access_token);
+            window.location.href = 'dashboard.html';
+        } else {
+            alert('Registration failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+});

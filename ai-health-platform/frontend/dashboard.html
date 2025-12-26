@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AI Health Companion</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        body { align-items: flex-start; padding: 2rem; }
+        .container { max-width: 900px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+        .card { background: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #667eea; }
+        .card h3 { color: #667eea; margin-bottom: 1rem; }
+        .btn { display: inline-block; padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; margin-top: 1rem; }
+        .btn:hover { background: #5568d3; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #e0e0e0; }
+        .risk-low { color: #28a745; }
+        .risk-medium { color: #ffc107; }
+        .risk-high { color: #dc3545; }
+        #chatMessages { max-height: 300px; overflow-y: auto; background: white; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; }
+        .message { padding: 0.5rem; margin: 0.5rem 0; border-radius: 5px; }
+        .user-msg { background: #667eea; color: white; text-align: right; }
+        .ai-msg { background: #e9ecef; }
+        #chatInput { width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 5px; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="nav">
+            <h1>🏥 AI Health Companion</h1>
+            <div>
+                <span id="userEmail"></span>
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+        </nav>
+
+        <div class="grid">
+            <!-- Diabetes Prediction Card -->
+            <div class="card">
+                <h3>🩺 Diabetes Risk Assessment</h3>
+                <p>Get your diabetes risk prediction based on health metrics.</p>
+                <form id="diabetesForm">
+                    <div class="form-group">
+                        <label>Pregnancies (0 if male)</label>
+                        <input type="number" name="pregnancies" value="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Glucose Level (mg/dL)</label>
+                        <input type="number" name="glucose" placeholder="70-200" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Blood Pressure (mm Hg)</label>
+                        <input type="number" name="blood_pressure" placeholder="60-120" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Skin Thickness (mm)</label>
+                        <input type="number" name="skin_thickness" placeholder="10-50" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Insulin (μU/mL)</label>
+                        <input type="number" name="insulin" placeholder="0-300" value="80">
+                    </div>
+                    <div class="form-group">
+                        <label>BMI</label>
+                        <input type="number" step="0.1" name="bmi" placeholder="18-45" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Diabetes Pedigree Function</label>
+                        <input type="number" step="0.001" name="diabetes_pedigree" placeholder="0.0-2.5" value="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="age" placeholder="Your age" required>
+                    </div>
+                    <button type="submit" class="btn">Get Prediction</button>
+                </form>
+                <div id="diabetesResult" style="margin-top: 1rem; display: none;"></div>
+            </div>
+
+            <!-- Chat Card -->
+            <div class="card">
+                <h3>💬 Health Chat Assistant</h3>
+                <div id="chatMessages">
+                    <div class="message ai-msg">Hello! I'm your AI health companion. How can I help you today?</div>
+                </div>
+                <input type="text" id="chatInput" placeholder="Ask me about health tips...">
+                <button class="btn" onclick="sendChat()">Send</button>
+            </div>
+
+            <!-- Habits Card -->
+            <div class="card">
+                <h3>📋 Health Habits</h3>
+                <p>Track your daily health habits to improve your wellbeing.</p>
+                <div id="habitsList"></div>
+                <button class="btn" onclick="getHabitSuggestions()">Get Suggestions</button>
+            </div>
+
+            <!-- Quick Stats Card -->
+            <div class="card">
+                <h3>📊 Your Health Summary</h3>
+                <div id="summaryStats">
+                    <p>Complete a health assessment to see your stats.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000/api/v1';
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        // Fetch headers with auth
+        const authHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        // Diabetes prediction
+        document.getElementById('diabetesForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                pregnancies: parseInt(form.pregnancies.value),
+                glucose: parseInt(form.glucose.value),
+                blood_pressure: parseInt(form.blood_pressure.value),
+                skin_thickness: parseInt(form.skin_thickness.value),
+                insulin: parseInt(form.insulin.value),
+                bmi: parseFloat(form.bmi.value),
+                diabetes_pedigree: parseFloat(form.diabetes_pedigree.value),
+                age: parseInt(form.age.value)
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/health/predict/diabetes`, {
+                    method: 'POST',
+                    headers: authHeaders,
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                const resultDiv = document.getElementById('diabetesResult');
+                resultDiv.style.display = 'block';
+
+                if (response.ok) {
+                    const riskClass = result.risk_level === 'high' ? 'risk-high' : 
+                                     result.risk_level === 'medium' ? 'risk-medium' : 'risk-low';
+                    resultDiv.innerHTML = `
+                        <strong>Result:</strong><br>
+                        Risk Level: <span class="${riskClass}">${result.risk_level.toUpperCase()}</span><br>
+                        Risk Score: ${(result.risk_score * 100).toFixed(1)}%<br>
+                        <small>⚠️ This is a risk assessment, not a diagnosis.</small>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<span class="risk-high">Error: ${result.detail || 'Failed to get prediction'}</span>`;
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        });
+
+        // Chat function
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const chatDiv = document.getElementById('chatMessages');
+            chatDiv.innerHTML += `<div class="message user-msg">${message}</div>`;
+            input.value = '';
+
+            try {
+                const response = await fetch(`${API_URL}/chat/`, {
+                    method: 'POST',
+                    headers: authHeaders,
+                    body: JSON.stringify({ message: message })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    chatDiv.innerHTML += `<div class="message ai-msg">${result.response}</div>`;
+                } else {
+                    chatDiv.innerHTML += `<div class="message ai-msg">Sorry, I couldn't process that request.</div>`;
+                }
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+            } catch (err) {
+                chatDiv.innerHTML += `<div class="message ai-msg">Connection error. Please try again.</div>`;
+            }
+        }
+
+        // Enter key for chat
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChat();
+        });
+
+        // Habit suggestions
+        async function getHabitSuggestions() {
+            try {
+                const response = await fetch(`${API_URL}/habits/suggestions?disease_type=diabetes`, {
+                    headers: authHeaders
+                });
+                const habits = await response.json();
+                const listDiv = document.getElementById('habitsList');
+                
+                if (Array.isArray(habits) && habits.length > 0) {
+                    listDiv.innerHTML = habits.map(h => `
+                        <div style="padding: 0.5rem; margin: 0.5rem 0; background: white; border-radius: 5px;">
+                            ✅ ${h.name || h}
+                        </div>
+                    `).join('');
+                } else {
+                    listDiv.innerHTML = '<p>No suggestions available yet.</p>';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
